@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Art Gallery Management System: how it works</title>
+<style>
+:root{
+  --bg:#faf8f4; --surface:#ffffff; --ink:#1f1d1a; --muted:#6b665e; --line:#e4dfd5;
+  --accent:#9a3b2f; --accent-ink:#ffffff; --accent-soft:#f6e6e2;
+  --pk:#9a6b00; --pk-bg:#fbf0d0; --fk:#1f5fa8; --fk-bg:#e3eefb; --uq:#25754c; --uq-bg:#dff3e8;
+  --ok:#25754c; --ok-bg:#e6f4ec; --err:#b3261e; --err-bg:#fbe9e7;
+  --code-bg:#f3efe7; --kw:#8a2d7a; --str:#0b6e4f; --num:#9a3b2f; --com:#8a8478; --ident:#1f5fa8;
+  --shadow:0 1px 2px rgba(40,30,10,.06),0 4px 14px rgba(40,30,10,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#171513; --surface:#201d1a; --ink:#f0ece4; --muted:#a39d92; --line:#36312b;
+    --accent:#e8806c; --accent-ink:#1b0f0c; --accent-soft:#3a2420;
+    --pk:#e8c15a; --pk-bg:#3b3118; --fk:#86b8f2; --fk-bg:#1d2e44; --uq:#6fcf97; --uq-bg:#1c3a2b;
+    --ok:#6fcf97; --ok-bg:#1c3a2b; --err:#ff8f86; --err-bg:#401f1c;
+    --code-bg:#272320; --kw:#d89be8; --str:#7fd8b0; --num:#f0a392; --com:#928b7f; --ident:#86b8f2;
+    --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;line-height:1.2;margin:0}
+h2{font-size:clamp(22px,3vw,30px);margin-bottom:6px}
+h3{font-size:20px;margin-bottom:6px}
+h4{font-size:16px;margin:18px 0 8px}
+p{margin:0 0 10px}
+code,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+.lead{font-size:17px;color:var(--muted);max-width:70ch}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+
+/* hero */
+.hero{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--bg))}
+.hero-in{display:grid;grid-template-columns:1.35fr 1fr;gap:28px;padding:34px 0 26px;align-items:end}
+.eyebrow{letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:700;color:var(--accent)}
+h1{font-size:clamp(28px,4.6vw,46px);margin:6px 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:13px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+.stat b{display:block;font:700 28px/1 Georgia,serif}
+.stat span{font-size:12px;color:var(--muted)}
+.hero-actions{display:flex;gap:8px;margin-top:10px;justify-content:flex-end}
+@media (max-width:860px){.hero-in{grid-template-columns:1fr}.hero-actions{justify-content:flex-start}}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+/* tabs */
+.tabs{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.tabs .wrap{display:flex;gap:2px;overflow-x:auto}
+.tab{appearance:none;border:0;background:none;padding:14px 14px 12px;cursor:pointer;font-weight:600;font-size:14.5px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+.tab .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--line);font-size:11px;margin-right:6px;color:var(--ink)}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab[aria-selected=true] .n{background:var(--accent);color:var(--accent-ink)}
+.panel{padding:28px 0 56px}
+.panel[hidden]{display:none}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+.card+.card{margin-top:16px}
+.grid>.card+.card{margin-top:0}
+.grid{display:grid;gap:14px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media (max-width:860px){.g3,.g2{grid-template-columns:minmax(0,1fr)}}
+.btn{appearance:none;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:9px;padding:8px 14px;font-weight:600;font-size:14.5px;cursor:pointer}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--muted)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;background:none;padding:8px 14px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+label.f{display:block;font-size:13px;font-weight:600;margin-bottom:10px}
+label.f span.hint{font-weight:400;color:var(--muted)}
+input[type=text],input[type=number],input[type=date],select{display:block;width:100%;margin-top:4px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-size:14.5px}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;height:16px;margin-right:6px;vertical-align:-3px}
+.row{display:grid;grid-template-columns:repeat(2,1fr);gap:0 12px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 12px}
+@media (max-width:560px){.row,.row3{grid-template-columns:1fr}}
+.badge{display:inline-block;font:700 10.5px/1 system-ui;padding:3px 5px;border-radius:5px;letter-spacing:.04em;vertical-align:1px}
+.badge.pk{background:var(--pk-bg);color:var(--pk)}
+.badge.fk{background:var(--fk-bg);color:var(--fk)}
+.badge.uq{background:var(--uq-bg);color:var(--uq)}
+.badge.nn{background:var(--line);color:var(--muted)}
+
+/* tables */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);max-height:420px}
+table.data{border-collapse:collapse;width:100%;font-size:13.5px}
+table.data th{position:sticky;top:0;background:var(--code-bg);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:700}
+table.data td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.data tr:last-child td{border-bottom:0}
+table.data td.num,table.data th.num{text-align:right;font-variant-numeric:tabular-nums}
+table.data td.null{color:var(--muted);font-style:italic}
+table.data tr.flash td{animation:flash 2.4s ease-out}
+@keyframes flash{from{background:var(--accent-soft)}to{background:transparent}}
+.empty{padding:14px;color:var(--muted);font-style:italic}
+
+/* sql */
+pre.sql{margin:0;padding:12px 14px;background:var(--code-bg);border:1px solid var(--line);border-radius:10px;font-size:13px;line-height:1.55;overflow:auto;white-space:pre}
+.k{color:var(--kw);font-weight:600}.s{color:var(--str)}.n{color:var(--num)}.c{color:var(--com);font-style:italic}.i{color:var(--ident)}
+.out{font-size:13.5px;margin-top:6px}
+.entry{border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:10px;background:var(--surface);margin-bottom:10px}
+.entry.ok{border-left-color:var(--ok)} .entry.err{border-left-color:var(--err)}
+.entry.ok .out{color:var(--ok)} .entry.err .out{color:var(--err)}
+.entry .etable{margin-top:8px}
+.cap{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+details summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);margin-top:12px}
+
+/* architecture */
+.level{position:relative}
+.level .num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;margin-bottom:8px}
+.level ul{margin:8px 0 0;padding-left:18px}
+.level li{margin:3px 0}
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stage{border:1.5px solid var(--line);border-radius:12px;padding:12px;background:var(--bg);transition:all .25s}
+.stage b{display:block;margin-bottom:4px}
+.stage.on{border-color:var(--accent);background:var(--accent-soft);transform:translateY(-3px)}
+.stage .st{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.06em}
+@media (max-width:860px){.pipe{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.stage{transition:none}.stage.on{transform:none}table.data tr.flash td{animation:none}}
+.artcard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.art{border:1.5px solid var(--line);border-radius:12px;padding:12px;background:var(--surface);text-align:left;cursor:pointer;display:block;width:100%}
+.art:hover{border-color:var(--muted)}
+.art.sel{border-color:var(--accent);background:var(--accent-soft)}
+.art .swatch{height:56px;border-radius:8px;margin-bottom:8px}
+.art b{font-family:Georgia,serif;font-size:16px;display:block}
+.art small{color:var(--muted);display:block;line-height:1.4}
+
+/* schema svg */
+.svgwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:6px}
+svg.erd{display:block;width:100%;min-width:900px;height:auto}
+svg.erd text{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;fill:var(--ink)}
+svg.erd .tname{font-family:system-ui,sans-serif;font-weight:700;font-size:13.5px}
+svg.erd .box{fill:var(--bg);stroke:var(--line);stroke-width:1.5}
+svg.erd .head{fill:var(--code-bg)}
+svg.erd g.tbl{cursor:pointer}
+svg.erd g.tbl.junction .head{fill:var(--accent-soft)}
+svg.erd g.tbl.sel .box{stroke:var(--accent);stroke-width:2.5}
+svg.erd g.tbl.rel .box{stroke:var(--accent);stroke-dasharray:5 3}
+svg.erd g.tbl:hover .box{stroke:var(--muted)}
+svg.erd .b-pk{fill:var(--pk);font-weight:700;font-size:10px}
+svg.erd .b-fk{fill:var(--fk);font-weight:700;font-size:10px}
+svg.erd .b-uq{fill:var(--uq);font-weight:700;font-size:10px}
+svg.erd path.rel{fill:none;stroke:var(--muted);stroke-width:1.5;opacity:.75}
+svg.erd path.rel.hot{stroke:var(--accent);stroke-width:2.6;opacity:1}
+svg.erd .lbl{font-family:system-ui,sans-serif;font-style:italic;font-size:11px;fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+svg.erd .card-lbl{font-family:system-ui,sans-serif;font-size:11px;font-weight:700;fill:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin:10px 0 14px}
+.relist{display:flex;flex-wrap:wrap;gap:6px}
+.relist button{appearance:none;border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer}
+.relist button:hover{border-color:var(--accent)}
+
+/* wizard */
+.steps{display:flex;gap:6px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px}
+.stepi{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:13.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+.stepi i{font-style:normal;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--line);color:var(--ink);font-size:12px}
+.stepi.cur{color:var(--ink);border-color:var(--accent)}
+.stepi.cur i{background:var(--accent);color:var(--accent-ink)}
+.stepi.done i{background:var(--ok);color:var(--accent-ink)}
+.wiz-nav{display:flex;justify-content:space-between;gap:10px;margin-top:18px;flex-wrap:wrap}
+.warn{color:var(--err);font-size:13.5px;margin-top:8px;min-height:20px}
+.note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:10px 12px;border-radius:0 10px 10px 0;font-size:14px;margin:12px 0}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-weight:600}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:600;background:var(--ok-bg);color:var(--ok);margin:2px 4px 2px 0}
+
+/* lab */
+.qcard h3{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tag{font:700 11px/1 system-ui;border-radius:999px;padding:4px 8px;background:var(--accent-soft);color:var(--accent);letter-spacing:.04em}
+.tag.x{background:var(--code-bg);color:var(--muted)}
+.qres{margin-top:12px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+.two>*,.grid>*{min-width:0}
+@media (max-width:980px){.two{grid-template-columns:minmax(0,1fr)}}
+footer{border-top:1px solid var(--line);padding:22px 0 40px;color:var(--muted);font-size:13.5px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <div class="eyebrow">Database Management Systems · SQL project</div>
+      <h1>Art Gallery Management System</h1>
+      <p class="lead">An interactive walkthrough of how the application works: the 3-level architecture, the 11-table schema, a sale from browsing to shipment, CRUD operations and the report’s queries, all running on live sample data in your browser.</p>
+      <div class="chips"><span class="chip">MySQL</span><span class="chip">InnoDB</span><span class="chip">XAMPP</span><span class="chip">phpMyAdmin</span><span class="chip">11 tables</span></div>
+    </div>
+    <div>
+      <div class="stats" id="stats" aria-live="polite"></div>
+      <div class="hero-actions"><button class="btn ghost sm" id="reset" type="button">Reset demo data</button></div>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" aria-label="Sections"><div class="wrap" role="tablist" id="tablist"></div></nav>
+
+<main class="wrap">
+  <section class="panel" id="p-arch" role="tabpanel" aria-labelledby="t-arch"></section>
+  <section class="panel" id="p-schema" role="tabpanel" aria-labelledby="t-schema" hidden></section>
+  <section class="panel" id="p-sell" role="tabpanel" aria-labelledby="t-sell" hidden></section>
+  <section class="panel" id="p-crud" role="tabpanel" aria-labelledby="t-crud" hidden></section>
+  <section class="panel" id="p-lab" role="tabpanel" aria-labelledby="t-lab" hidden></section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p><b>About the data.</b> The 20 galleries, artworks 1–5 and their galleries, the 14 artworks for sale and the medium counts follow the project report. Artists, customers, orders, payments, shipments and the remaining artworks are invented sample data. Nothing here is saved; reloading or “Reset demo data” restores the starting state.</p>
+    <p>Constraint errors are simulated in MySQL’s wording (codes #1048, #1062, #1451, #1452).</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= tiny DOM helpers ================= */
+const $=(s,r=document)=>r.querySelector(s);
+const PROPS=new Set(['checked','disabled','selected','readOnly','value','hidden','open']);
+function h(tag,attrs,...kids){
+  const e=document.createElement(tag); let value;
+  for(const [k,v] of Object.entries(attrs||{})){
+    if(v===undefined||v===null||v===false) continue;
+    if(k==='class') e.className=v;
+    else if(k==='html') e.innerHTML=v;
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
+    else if(k==='value') value=v;
+    else if(PROPS.has(k)) e[k]=v;
+    else e.setAttribute(k,v===true?'':v);
+  }
+  for(const kid of kids.flat(Infinity)){
+    if(kid===null||kid===undefined||kid===false) continue;
+    e.append(kid instanceof Node?kid:document.createTextNode(String(kid)));
+  }
+  if(value!==undefined) e.value=value;
+  return e;
+}
+const NS='http://www.w3.org/2000/svg';
+function s(tag,attrs,...kids){
+  const e=document.createElementNS(NS,tag);
+  for(const [k,v] of Object.entries(attrs||{})){
+    if(v==null) continue;
+    if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else e.setAttribute(k,v);
+  }
+  for(const kid of kids.flat()){ if(kid==null||kid===false) continue; e.append(kid instanceof Node?kid:document.createTextNode(String(kid))); }
+  return e;
+}
+const isoDate=d=>new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+const TODAY=isoDate(new Date());
+
+/* ================= schema (Section 6 of the report) ================= */
+const col=(n,t,o={})=>({n,t,pk:!!o.pk,ai:!!o.ai,fk:o.fk||null,uq:!!o.uq,nullable:!!o.nullable});
+const V='VARCHAR(100)';
+const SCHEMA={
+  Galleries:[col('city',V),col('street',V),col('building_number','INT'),col('apartment/house_number','INT'),col('ZIP_code','INT'),col('id_Gallery','INT',{pk:1,ai:1})],
+  Exhibitions:[col('exhibition_name',V),col('start_date','DATE'),col('end_date','DATE'),col('id_Exhibition','INT',{pk:1,ai:1}),col('fk_Galleryid_Gallery','INT',{fk:['Galleries','id_Gallery']})],
+  Exhibition_items:[col('display_date','DATE'),col('id_Exhibition_item','INT',{pk:1,ai:1}),col('fk_Exhibitionid_Exhibition','INT',{fk:['Exhibitions','id_Exhibition']}),col('fk_Artworkno','INT',{fk:['Artworks','no']})],
+  Artworks:[col('no','INT',{pk:1,ai:1}),col('title',V),col('year_created','INT'),col('art_medium',V),col('length','INT'),col('width','INT'),col('height','INT'),col('sales_status',V),col('fk_Galleryid_Gallery','INT',{fk:['Galleries','id_Gallery']})],
+  Artists:[col('first_name',V),col('last_name',V),col('pseudonym',V,{nullable:1}),col('citizenship',V),col('id_Artist','INT',{pk:1,ai:1})],
+  Creates:[col('fk_Artworkno','INT',{pk:1,fk:['Artworks','no']}),col('fk_Artistid_Artist','INT',{pk:1,fk:['Artists','id_Artist']})],
+  Provenances:[col('previous_owner',V),col('acquisition_date','DATE'),col('authenticity_certificate','BOOLEAN'),col('place_of_acquisition',V),col('id_Provenance','INTEGER',{pk:1,ai:1}),col('fk_Artworkno','INT',{fk:['Artworks','no']})],
+  Customers:[col('personal_id',V,{pk:1}),col('first_name',V),col('last_name',V),col('email',V),col('phone_number',V)],
+  Orders:[col('orderNo','INT',{pk:1,ai:1}),col('sale_date','DATE'),col('price','FLOAT'),col('number_of_payments','INT'),col('fk_Customerpersonal_id',V,{fk:['Customers','personal_id']}),col('fk_Artworkno','INT',{fk:['Artworks','no']})],
+  Payments:[col('payment_method',V),col('transaction_status',V),col('billing_address',V),col('in_installments','BOOLEAN'),col('id_Payment','INT',{pk:1,ai:1}),col('fk_OrderorderNo','INT',{fk:['Orders','orderNo']})],
+  Shipments:[col('tracking_number','INT',{uq:1}),col('shipping_company',V),col('insurance','BOOLEAN'),col('insured_value','FLOAT'),col('id_Shipment','INT',{pk:1,ai:1}),col('fk_OrderorderNo','INT',{fk:['Orders','orderNo'],uq:1})]
+};
+const TABLES=Object.keys(SCHEMA);
+const JUNCTION=new Set(['Creates','Exhibition_items']);
+const PURPOSE={
+  Galleries:'Stores each gallery’s address.',
+  Exhibitions:'Stores exhibition details and the gallery hosting each exhibition.',
+  Exhibition_items:'Records which artworks appear in each exhibition and their display dates (junction table).',
+  Artworks:'Stores artwork details and identifies the gallery each artwork belongs to.',
+  Artists:'Stores artists’ personal details; the pseudonym is optional.',
+  Creates:'Junction table that resolves the many-to-many relationship between Artworks and Artists. Its two foreign keys together form the composite primary key, so a pair cannot repeat.',
+  Provenances:'Stores an artwork’s ownership and acquisition history.',
+  Customers:'Stores customer identification and contact details.',
+  Orders:'Links each customer’s order to an artwork and records the sale details.',
+  Payments:'Stores payment information; an order can have several payment records.',
+  Shipments:'Stores delivery and insurance details for orders that need shipping (at most one per order).'
+};
+
+/* ================= sample data ================= */
+function mk(cols,rows){return rows.map(r=>{const o={};cols.forEach((c,i)=>o[c]=r[i]);return o;});}
+function seed(){
+  const R={};
+  R.Galleries=mk(['city','street','building_number','apartment/house_number','ZIP_code','id_Gallery'],[
+    ['Vilnius','Gedimino pr.',9,2,1103,1],['Kaunas','Laisves al.',52,1,44244,2],['Klaipeda','Tiltu g.',14,3,91246,3],
+    ['Siauliai','Vilniaus g.',7,5,76285,4],['Panevezys','Respublikos g.',22,1,35173,5],['Kaunas','Savanorių pr.',132,4,44146,6],
+    ['Vilnius','Pylimo g.',6,1,1141,7],['Klaipeda','Liepu al.',11,2,92101,8],['Siauliai','Ezero g.',35,3,77141,9],
+    ['Panevezys','Senamiesčio g.',18,1,35200,10],['Druskininkai','Taikos g.',7,5,66117,11],['Alytus','Pulko g.',21,2,62175,12],
+    ['Marijampole','Kauno g.',3,1,68296,13],['Utena','Misko g.',14,4,28141,14],['Telsiai','Respublikos g.',28,2,87131,15],
+    ['Kedainiai','Didžioji g.',9,3,57231,16],['Jonava','Chemikų g.',45,1,55131,17],['Kretinga','Vilniaus g.',12,2,97111,18],
+    ['Skuodas','Dariaus g.',5,1,98116,19],['Rokiskis','Lauko g.',33,6,42121,20]]);
+  R.Artworks=mk(['no','title','year_created','art_medium','length','width','height','sales_status','fk_Galleryid_Gallery'],[
+    [1,'Sea Sonata',2012,'Oil on canvas',90,120,4,'For sale',1],[2,'Rex',2015,'Acrylic',60,80,3,'For sale',1],
+    [3,'Winter Sonata',2010,'Oil on canvas',100,140,4,'For sale',2],[4,'Rest',2018,'Watercolor',40,50,1,'For sale',6],
+    [5,'Frescoes',2005,'Tempera',120,180,5,'For sale',3],[6,'Amber Dusk',2019,'Oil on canvas',70,90,3,'For sale',4],
+    [7,'Curonian Morning',2021,'Watercolor',30,40,1,'For sale',3],[8,'Quiet Harbour',2017,'Acrylic',80,100,3,'For sale',8],
+    [9,'Linen and Light',2014,'Pastel',50,65,1,'For sale',5],[10,'The Long Field',2020,'Oil on canvas',110,150,4,'For sale',7],
+    [11,'Birch Rhythm',2016,'Acrylic',60,60,3,'For sale',9],[12,'Salt Marsh',2022,'Watercolor',35,50,1,'For sale',10],
+    [13,'Red Chair',2011,'Oil on canvas',75,95,3,'For sale',2],[14,'Evening Procession',2013,'Oil on canvas',90,130,4,'Sold',6],
+    [15,'Stone Garden',2019,'Acrylic',70,70,3,'For sale',11],[16,'Night Ferry',2018,'Oil on canvas',80,110,3,'Sold',1],
+    [17,'Quarry Lake',2020,'Watercolor',45,60,1,'Sold',12],[18,'Paper Boats',2016,'Pastel',40,55,1,'Sold',13]]);
+  R.Artists=mk(['first_name','last_name','pseudonym','citizenship','id_Artist'],[
+    ['Rasa','Kazlauskaitė',null,'Lithuanian',1],['Mantas','Petrauskas','M. Petra','Lithuanian',2],['Ieva','Jankutė',null,'Lithuanian',3],
+    ['Tomas','Balsys',null,'Latvian',4],['Greta','Norkutė','G. Nor','Lithuanian',5],['Jonas','Vaitkus',null,'Polish',6],
+    ['Karl','Tamm',null,'Estonian',7],['Elena','Rimkutė','Elena R.','Lithuanian',8]]);
+  R.Creates=mk(['fk_Artworkno','fk_Artistid_Artist'],[[1,1],[2,2],[2,5],[3,3],[4,4],[5,7],[6,1],[7,8],[8,5],[9,3],[10,2],[10,6],[11,6],[12,8],[13,1],[14,6],[15,4],[16,7],[17,8],[18,3]]);
+  R.Exhibitions=mk(['exhibition_name','start_date','end_date','id_Exhibition','fk_Galleryid_Gallery'],[
+    ['Baltic Light','2026-03-01','2026-04-15',1,1],['Winter Voices','2026-01-10','2026-02-28',2,2],
+    ['Coastal Visions','2026-06-05','2026-08-30',3,3],['Modern Lithuania','2026-09-12','2026-12-20',4,6]]);
+  R.Exhibition_items=mk(['display_date','id_Exhibition_item','fk_Exhibitionid_Exhibition','fk_Artworkno'],[
+    ['2026-03-01',1,1,1],['2026-03-01',2,1,2],['2026-01-10',3,2,3],['2026-01-15',4,2,13],
+    ['2026-06-05',5,3,5],['2026-06-05',6,3,7],['2026-09-12',7,4,4],['2026-09-12',8,4,14]]);
+  const owners=['Private collection','Artist studio','Baltic Art Fund','Estate sale','Galerija Nova','Private collection'];
+  const places=['Vilnius','Riga','Kaunas','Tallinn','Klaipeda','Warsaw'];
+  R.Provenances=R.Artworks.map((a,i)=>({previous_owner:owners[i%6],
+    acquisition_date:'20'+String(18+i%7)+'-'+String(1+i%9).padStart(2,'0')+'-'+String(10+i%15),
+    authenticity_certificate:i%5!==0?1:0,place_of_acquisition:places[(i*5)%6],id_Provenance:i+1,fk_Artworkno:a.no}));
+  R.Customers=mk(['personal_id','first_name','last_name','email','phone_number'],[
+    ['C-1001','Aistė','Stankutė','aiste.stankute@example.com','+370 600 10001'],['C-1002','Darius','Mockus','darius.mockus@example.com','+370 600 10002'],
+    ['C-1003','Emilija','Brazaitė','emilija.brazaite@example.com','+370 600 10003'],['C-1004','Lukas','Vasiliauskas','lukas.vasiliauskas@example.com','+370 600 10004'],
+    ['C-1005','Sofija','Žilinskaitė','sofija.zilinskaite@example.com','+370 600 10005'],['C-1006','Peter','Hansen','peter.hansen@example.com','+45 20 10 00 06']]);
+  R.Orders=mk(['orderNo','sale_date','price','number_of_payments','fk_Customerpersonal_id','fk_Artworkno'],[
+    [1,'2026-02-03',1450,1,'C-1001',14],[2,'2026-04-22',3200,4,'C-1003',16],[3,'2026-07-09',780.5,1,'C-1002',17],[4,'2026-10-01',1260,2,'C-1005',18]]);
+  R.Payments=mk(['payment_method','transaction_status','billing_address','in_installments','id_Payment','fk_OrderorderNo'],[
+    ['Card','Completed','Žvejų g. 4, Kaunas',0,1,1],
+    ['Bank transfer','Completed','Birutės g. 18, Vilnius',1,2,2],['Bank transfer','Completed','Birutės g. 18, Vilnius',1,3,2],
+    ['Bank transfer','Completed','Birutės g. 18, Vilnius',1,4,2],['Bank transfer','Pending','Birutės g. 18, Vilnius',1,5,2],
+    ['Card','Completed','Kauno g. 31, Kaunas',0,6,3],
+    ['PayPal','Completed','Gedimino pr. 40, Vilnius',1,7,4],['PayPal','Pending','Gedimino pr. 40, Vilnius',1,8,4]]);
+  R.Shipments=mk(['tracking_number','shipping_company','insurance','insured_value','id_Shipment','fk_OrderorderNo'],[
+    [700112233,'LP Express',1,1450,1,1],[700445566,'DPD',1,3200,2,2]]);
+  const ai={};
+  for(const t of TABLES){ const a=SCHEMA[t].find(c=>c.ai); if(a) ai[t]=Math.max(0,...R[t].map(r=>r[a.n]))+1; }
+  return {rows:R,ai};
+}
+let DB=seed();
+const snapshot=()=>JSON.stringify(DB);
+const restore=str=>{DB=JSON.parse(str);};
+
+/* ================= tiny engine: constraints behave like MySQL/InnoDB ================= */
+const fail=msg=>({ok:false,msg});
+const fkName=(t,pt)=>'fk_'+t+'_'+pt;
+function coerce(c,v){
+  const nul=v===null||v===undefined||(typeof v==='string'&&v.trim()==='');
+  if(nul){ if(c.nullable) return {ok:true,val:null}; return {ok:false,msg:`#1048 - Column '${c.n}' cannot be null`}; }
+  const T=c.t;
+  if(T==='INT'||T==='INTEGER'){
+    const n=typeof v==='number'?v:Number(String(v).trim());
+    if(!Number.isInteger(n)) return {ok:false,msg:`#1366 - Incorrect integer value: '${v}' for column '${c.n}'`};
+    return {ok:true,val:n};
+  }
+  if(T==='FLOAT'){
+    const n=typeof v==='number'?v:Number(String(v).trim());
+    if(!isFinite(n)) return {ok:false,msg:`#1366 - Incorrect decimal value: '${v}' for column '${c.n}'`};
+    return {ok:true,val:n};
+  }
+  if(T==='DATE'){
+    const str=String(v).trim();
+    const d=new Date(str+'T00:00:00Z');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(str)||isNaN(d)||d.toISOString().slice(0,10)!==str) return {ok:false,msg:`#1292 - Incorrect date value: '${v}' for column '${c.n}'`};
+    return {ok:true,val:str};
+  }
+  if(T==='BOOLEAN'){
+    if([true,1,'1','true'].includes(v)) return {ok:true,val:1};
+    if([false,0,'0','false'].includes(v)) return {ok:true,val:0};
+    return {ok:false,msg:`#1366 - Incorrect value: '${v}' for column '${c.n}'`};
+  }
+  const str=String(v);
+  if(str.length>100) return {ok:false,msg:`#1406 - Data too long for column '${c.n}'`};
+  return {ok:true,val:str};
+}
+const pkOf=t=>SCHEMA[t].filter(c=>c.pk);
+function fkError(t,c){
+  const [pt,pc]=c.fk;
+  return `#1452 - Cannot add or update a child row: a foreign key constraint fails (\`gallery\`.\`${t}\`, CONSTRAINT \`${fkName(t,pt)}\` FOREIGN KEY (\`${c.n}\`) REFERENCES \`${pt}\` (\`${pc}\`))`;
+}
+function insert(t,input){
+  const row={};
+  for(const c of SCHEMA[t]){
+    if(c.ai&&(input[c.n]===undefined||input[c.n]===null||input[c.n]==='')){row[c.n]=null;continue;}
+    const r=coerce(c,input[c.n]); if(!r.ok) return fail(r.msg); row[c.n]=r.val;
+  }
+  const pk=pkOf(t);
+  if(pk.every(c=>row[c.n]!==null)&&DB.rows[t].some(x=>pk.every(c=>x[c.n]===row[c.n])))
+    return fail(`#1062 - Duplicate entry '${pk.map(c=>row[c.n]).join('-')}' for key '${t}.PRIMARY'`);
+  for(const c of SCHEMA[t]) if(c.uq&&DB.rows[t].some(x=>x[c.n]===row[c.n]))
+    return fail(`#1062 - Duplicate entry '${row[c.n]}' for key '${t}.${c.n}'`);
+  for(const c of SCHEMA[t]) if(c.fk&&!DB.rows[c.fk[0]].some(x=>x[c.fk[1]]===row[c.n])) return fail(fkError(t,c));
+  for(const c of SCHEMA[t]) if(c.ai&&row[c.n]===null) row[c.n]=DB.ai[t];
+  DB.rows[t].push(row);
+  const a=SCHEMA[t].find(c=>c.ai); if(a&&row[a.n]>=DB.ai[t]) DB.ai[t]=row[a.n]+1;
+  return {ok:true,row};
+}
+function childRefs(t){ // [childTable, column, parentColumn]
+  const out=[];
+  for(const ct of TABLES) for(const c of SCHEMA[ct]) if(c.fk&&c.fk[0]===t) out.push([ct,c.n,c.fk[1]]);
+  return out;
+}
+function update(t,where,changes){
+  const targets=DB.rows[t].filter(where); const patch={};
+  for(const [k,v] of Object.entries(changes)){
+    const c=SCHEMA[t].find(x=>x.n===k); const r=coerce(c,v); if(!r.ok) return fail(r.msg); patch[k]=r.val;
+  }
+  for(const row of targets){
+    for(const [k,v] of Object.entries(patch)){
+      const c=SCHEMA[t].find(x=>x.n===k);
+      if(c.fk&&!DB.rows[c.fk[0]].some(x=>x[c.fk[1]]===v)) return fail(fkError(t,c));
+      if(c.uq&&DB.rows[t].some(x=>x!==row&&x[k]===v)) return fail(`#1062 - Duplicate entry '${v}' for key '${t}.${k}'`);
+      if(c.pk&&v!==row[k]){ for(const [ct,cc,pc] of childRefs(t)) if(pc===k&&DB.rows[ct].some(x=>x[cc]===row[k]))
+        return fail(`#1451 - Cannot delete or update a parent row: a foreign key constraint fails (\`gallery\`.\`${ct}\`, CONSTRAINT \`${fkName(ct,t)}\` FOREIGN KEY (\`${cc}\`) REFERENCES \`${t}\` (\`${pc}\`))`); }
+    }
+  }
+  targets.forEach(r=>Object.assign(r,patch));
+  return {ok:true,affected:targets.length};
+}
+function remove(t,where){
+  const targets=DB.rows[t].filter(where);
+  for(const row of targets) for(const [ct,cc,pc] of childRefs(t)) if(DB.rows[ct].some(x=>x[cc]===row[pc]))
+    return fail(`#1451 - Cannot delete or update a parent row: a foreign key constraint fails (\`gallery\`.\`${ct}\`, CONSTRAINT \`${fkName(ct,t)}\` FOREIGN KEY (\`${cc}\`) REFERENCES \`${t}\` (\`${pc}\`))`);
+  DB.rows[t]=DB.rows[t].filter(r=>!targets.includes(r));
+  return {ok:true,affected:targets.length};
+}
+
+/* ================= SQL text helpers ================= */
+const bt=n=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)?n:'`'+n+'`';
+const q=v=>{
+  if(v===null||v===undefined) return 'NULL';
+  if(typeof v==='object'&&v.raw) return v.raw;
+  if(typeof v==='number') return String(v);
+  if(typeof v==='boolean') return v?'1':'0';
+  return "'"+String(v).replace(/\\/g,'\\\\').replace(/'/g,"''")+"'";
+};
+const qn=(v,numeric)=>{ // typed form input -> SQL literal (numbers stay numbers)
+  if(v===''||v===null||v===undefined) return 'NULL';
+  if(numeric&&/^-?\d+(\.\d+)?$/.test(String(v).trim())) return String(v).trim();
+  return q(String(v));
+};
+function sqlInsert(t,cols,valueRows){
+  const vs=valueRows.map(r=>'('+r.map(q).join(', ')+')').join(',\n       ');
+  return `INSERT INTO ${t} (${cols.map(bt).join(', ')})\nVALUES ${vs};`;
+}
+function hl(sql){
+  const esc=sql.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc.replace(/(--[^\n]*)|('(?:[^']|'')*')|(`[^`]*`)|\b(SELECT|FROM|WHERE|INSERT INTO|VALUES|UPDATE|SET|DELETE FROM|LEFT JOIN|JOIN|ON|AS|GROUP BY|ORDER BY|DESC|ASC|COUNT|BETWEEN|AND|OR|START TRANSACTION|COMMIT|ROLLBACK|NULL|LAST_INSERT_ID|CONCAT|DISTINCT|CREATE VIEW)\b|\b(\d+(?:\.\d+)?)\b/g,
+    (m,c,st,b,k,n)=>c?`<span class="c">${c}</span>`:st?`<span class="s">${st}</span>`:b?`<span class="i">${b}</span>`:k?`<span class="k">${k}</span>`:`<span class="n">${n}</span>`);
+}
+const sqlBlock=sql=>h('pre',{class:'sql',html:hl(sql)});
+
+/* ================= shared UI pieces ================= */
+function cell(v){
+  if(v===null||v===undefined) return h('td',{class:'null'},'NULL');
+  return h('td',{class:typeof v==='number'?'num':''},String(v));
+}
+function renderTable(cols,rows,opts={}){
+  if(!rows.length) return h('div',{class:'empty'},'0 rows returned (empty result set).');
+  const t=h('table',{class:'data'},
+    h('thead',{},h('tr',{},cols.map((c,i)=>h('th',{class:typeof rows[0][i]==='number'?'num':''},c)))),
+    h('tbody',{},rows.map(r=>h('tr',{class:opts.flash&&opts.flash(r)?'flash':''},r.map(cell)))));
+  return h('div',{class:'table-wrap',style:opts.maxH?`max-height:${opts.maxH}px`:null},t);
+}
+function tableRows(t){const cols=SCHEMA[t].map(c=>c.n);return {cols,rows:DB.rows[t].map(r=>cols.map(c=>r[c]))};}
+const by=(t,c,v)=>DB.rows[t].find(r=>r[c]===v);
+const artistsOf=no=>DB.rows.Creates.filter(c=>c.fk_Artworkno===no).map(c=>{const a=by('Artists','id_Artist',c.fk_Artistid_Artist);return a.first_name+' '+a.last_name;});
+const gcity=id=>{const g=by('Galleries','id_Gallery',id);return g?g.city:'?';};
+const listeners=[]; const onChange=fn=>listeners.push(fn);
+const changed=()=>listeners.forEach(f=>f());
+
+/* ================= header stats ================= */
+function renderStats(){
+  const forSale=DB.rows.Artworks.filter(a=>a.sales_status==='For sale').length;
+  const items=[[DB.rows.Galleries.length,'galleries'],[DB.rows.Artworks.length,`artworks (${forSale} for sale)`],[DB.rows.Customers.length,'customers'],[DB.rows.Orders.length,'orders']];
+  const box=$('#stats'); box.replaceChildren(...items.map(([n,l])=>h('div',{class:'stat'},h('b',{},n),h('span',{},l))));
+}
+onChange(renderStats);
+
+/* ================= tabs ================= */
+const TABS=[['arch','Architecture'],['schema','Schema map'],['sell','Sell an artwork'],['crud','CRUD on Galleries'],['lab','Query lab']];
+function showTab(id){
+  TABS.forEach(([t])=>{
+    const on=t===id; $('#p-'+t).hidden=!on; const b=$('#t-'+t); b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1;
+  });
+  try{history.replaceState(null,'','#'+id);}catch(e){}
+  window.scrollTo({top:Math.min(window.scrollY,$('.tabs').offsetTop),behavior:'instant'});
+}
+$('#tablist').append(...TABS.map(([id,label],i)=>h('button',{class:'tab',id:'t-'+id,role:'tab','aria-controls':'p-'+id,'aria-selected':false,type:'button',
+  onclick:()=>showTab(id),
+  onkeydown:e=>{const k=e.key; if(k==='ArrowRight'||k==='ArrowLeft'){const j=(i+(k==='ArrowRight'?1:-1)+TABS.length)%TABS.length;showTab(TABS[j][0]);$('#t-'+TABS[j][0]).focus();}}},
+  h('span',{class:'n'},i+1),label)));
+
+/* ================= 1. ARCHITECTURE ================= */
+let role='customer', custView='C-1001';
+const extPanel=h('div',{});
+function customerView(){
+  const forSale=DB.rows.Artworks.filter(a=>a.sales_status==='For sale');
+  const mine=DB.rows.Orders.filter(o=>o.fk_Customerpersonal_id===custView);
+  const sel=h('select',{'aria-label':'Choose customer',onchange:e=>{custView=e.target.value;renderExt();},value:custView},
+    DB.rows.Customers.map(c=>h('option',{value:c.personal_id},`${c.first_name} ${c.last_name} (${c.personal_id})`)));
+  const sql=`-- artworks available for sale\nSELECT a.title, a.art_medium, a.year_created, g.city\nFROM Artworks AS a\nJOIN Galleries AS g ON a.fk_Galleryid_Gallery = g.id_Gallery\nWHERE a.sales_status = 'For sale';\n\n-- this customer’s own purchases\nSELECT o.orderNo, a.title, o.sale_date, o.price\nFROM Orders AS o\nJOIN Artworks AS a ON a.no = o.fk_Artworkno\nWHERE o.fk_Customerpersonal_id = ${q(custView)};`;
+  return h('div',{},
+    h('label',{class:'f'},'Signed in as',sel),
+    h('h4',{},'Artworks available for sale'),
+    renderTable(['title','art_medium','year_created','size (cm)','city'],forSale.map(a=>[a.title,a.art_medium,a.year_created,`${a.length}×${a.width}×${a.height}`,gcity(a.fk_Galleryid_Gallery)]),{maxH:260}),
+    h('h4',{},'My purchases'),
+    renderTable(['orderNo','title','sale_date','price','payments','tracking'],mine.map(o=>{
+      const sh=DB.rows.Shipments.find(s=>s.fk_OrderorderNo===o.orderNo);
+      return [o.orderNo,by('Artworks','no',o.fk_Artworkno).title,o.sale_date,o.price,o.number_of_payments,sh?sh.tracking_number:null];})),
+    h('details',{},h('summary',{},'SQL behind this view'),sqlBlock(sql)));
+}
+function staffView(){
+  const sql=`-- collection and sales status\nSELECT a.no, a.title, a.sales_status, g.city\nFROM Artworks AS a\nJOIN Galleries AS g ON a.fk_Galleryid_Gallery = g.id_Gallery\nORDER BY a.no;\n\n-- orders still needing attention\nSELECT o.orderNo, a.title, COUNT(*) AS pending_payments\nFROM Orders AS o\nJOIN Artworks AS a ON a.no = o.fk_Artworkno\nJOIN Payments AS p ON p.fk_OrderorderNo = o.orderNo\nWHERE p.transaction_status = 'Pending'\nGROUP BY o.orderNo, a.title;`;
+  const pend=DB.rows.Orders.map(o=>({o,n:DB.rows.Payments.filter(p=>p.fk_OrderorderNo===o.orderNo&&p.transaction_status==='Pending').length})).filter(x=>x.n>0);
+  return h('div',{},
+    h('h4',{style:'margin-top:0'},'Collection and sales status'),
+    renderTable(['no','title','sales_status','city','artists'],DB.rows.Artworks.map(a=>[a.no,a.title,a.sales_status,gcity(a.fk_Galleryid_Gallery),artistsOf(a.no).join(', ')]),{maxH:260}),
+    h('h4',{},'Orders still needing attention'),
+    renderTable(['orderNo','title','pending_payments'],pend.map(x=>[x.o.orderNo,by('Artworks','no',x.o.fk_Artworkno).title,x.n])),
+    h('details',{},h('summary',{},'SQL behind this view'),sqlBlock(sql)));
+}
+function adminView(){
+  return h('div',{},h('p',{class:'muted'},'The administrator oversees the full database. Click a table to open it in the Schema map.'),
+    h('div',{class:'relist'},TABLES.map(t=>h('button',{type:'button',onclick:()=>gotoTable(t)},`${t} · ${DB.rows[t].length} rows`))));
+}
+function renderExt(){
+  extPanel.replaceChildren(role==='customer'?customerView():role==='staff'?staffView():adminView());
+}
+const pipeText=[
+  ['1 · phpMyAdmin','You type or submit the SQL statement in the browser.'],
+  ['2 · MySQL server','Parses the SQL and checks keys, constraints and data types. Runs locally through XAMPP.'],
+  ['3 · InnoDB engine','Uses indexes to find rows and checks key relationships in the database files on disk.'],
+  ['4 · Result','Rows are sent back to phpMyAdmin and shown as a table.']];
+let pipeTimer=null;
+function tracePipe(btn){
+  const stages=[...document.querySelectorAll('.stage')]; clearInterval(pipeTimer);
+  let i=0; const res=$('#pipe-res'); res.textContent='';
+  const tick=()=>{stages.forEach((s2,j)=>s2.classList.toggle('on',j===i)); i++; if(i>stages.length){clearInterval(pipeTimer);stages.forEach(x=>x.classList.remove('on'));
+    res.textContent='for_sale = '+DB.rows.Artworks.filter(a=>a.sales_status==='For sale').length;}};
+  tick(); pipeTimer=setInterval(tick,900);
+}
+function buildArch(){
+  const root=$('#p-arch');
+  const lvl=(n,title,sub,items)=>h('div',{class:'card level'},h('div',{class:'num'},n),h('h3',{},title),h('p',{class:'muted'},sub),h('ul',{},items.map(i=>h('li',{},i))));
+  root.append(
+    h('h2',{},'One database, three points of view'),
+    h('p',{class:'lead'},'The system follows the 3-level DBMS architecture. Users see tailored views, the logical design lives in 11 related tables, and MySQL decides how those tables are physically stored.'),
+    h('div',{class:'grid g3',style:'margin-top:18px'},
+      lvl(1,'External level','What each kind of user is allowed to see',['Customers: artworks for sale and their own purchases','Gallery staff: the collection and sales processing','Administrator: the full database']),
+      lvl(2,'Conceptual level','The complete logical structure',['11 tables: Galleries, Exhibitions, Exhibition_items, Artworks, Artists, Creates, Provenances, Customers, Orders, Payments, Shipments','Primary keys identify records; foreign keys connect them','Two junction tables: Creates and Exhibition_items']),
+      lvl(3,'Internal level','How the data is physically stored and accessed',['InnoDB storage engine with indexes','MySQL server running locally through XAMPP','SQL sent through phpMyAdmin; users never touch the files directly'])),
+    h('div',{class:'card',style:'margin-top:16px'},
+      h('h3',{},'External level in action'),
+      h('p',{class:'muted'},'Pick a role. Each role runs different queries against the same tables, so each one sees a different slice of the same data.'),
+      h('div',{class:'seg',role:'group','aria-label':'Role'},[['customer','Customer'],['staff','Gallery staff'],['admin','Administrator']].map(([id,l])=>
+        h('button',{type:'button','aria-pressed':role===id,onclick:e=>{role=id;[...e.currentTarget.parentNode.children].forEach(b=>b.setAttribute('aria-pressed',b===e.currentTarget));renderExt();}},l))),
+      h('div',{style:'margin-top:16px'},extPanel)),
+    h('div',{class:'card'},
+      h('h3',{},'Internal level in action'),
+      h('p',{class:'muted'},'What happens when a statement is run from phpMyAdmin:'),
+      sqlBlock("SELECT COUNT(*) AS for_sale\nFROM Artworks\nWHERE sales_status = 'For sale';"),
+      h('div',{class:'pipe'},pipeText.map(([t,d])=>h('div',{class:'stage'},h('b',{},t),h('span',{class:'small muted'},d)))),
+      h('div',{style:'display:flex;gap:12px;align-items:center;flex-wrap:wrap'},
+        h('button',{class:'btn',type:'button',onclick:e=>tracePipe(e.currentTarget)},'▶ Trace the query'),
+        h('strong',{id:'pipe-res',class:'mono','aria-live':'polite'})),
+      h('div',{class:'note'},h('b',{},'Data independence. '),'Adding an index or changing how files are stored changes the internal level only. The tables and the queries above keep working unchanged, and the mappings between levels preserve existing user views when the logical schema changes.')));
+  renderExt(); onChange(renderExt);
+}
+
+/* ================= 2. SCHEMA MAP ================= */
+const BOX={w:230,rowH:18,head:28,pad:8};
+const POS={Galleries:[20,20],Exhibitions:[330,20],Exhibition_items:[640,20],Artworks:[640,230],Artists:[20,480],Creates:[330,480],Provenances:[950,230],Orders:[640,480],Payments:[950,480],Customers:[640,680],Shipments:[950,680]};
+const boxH=t=>BOX.head+SCHEMA[t].length*BOX.rowH+BOX.pad;
+const RELS=[
+  {a:{t:'Galleries',side:'r',pos:80},b:{t:'Exhibitions',side:'l',pos:80},la:'1',lb:'0..*',name:'organizes'},
+  {a:{t:'Exhibitions',side:'r',pos:80},b:{t:'Exhibition_items',side:'l',pos:80},la:'1',lb:'1..*',name:'is exhibited'},
+  {a:{t:'Artworks',side:'t',pos:755},b:{t:'Exhibition_items',side:'b',pos:755},la:'1',lb:'0..*',name:'included in'},
+  {a:{t:'Galleries',side:'b',pos:135},b:{t:'Artworks',side:'l',pos:270},la:'1',lb:'1..*',name:'sells'},
+  {a:{t:'Artists',side:'r',pos:520},b:{t:'Creates',side:'l',pos:520},la:'1',lb:'1..*',name:'creates'},
+  {a:{t:'Artworks',side:'l',pos:404},b:{t:'Creates',side:'t',pos:445},la:'1',lb:'1..*',name:'creates'},
+  {a:{t:'Artworks',side:'r',pos:290},b:{t:'Provenances',side:'l',pos:290},la:'1',lb:'1..*',name:'has'},
+  {a:{t:'Artworks',side:'b',pos:755},b:{t:'Orders',side:'t',pos:755},la:'1',lb:'0..*',name:'included in'},
+  {a:{t:'Customers',side:'t',pos:697},b:{t:'Orders',side:'b',pos:697},la:'1',lb:'0..*',name:'places'},
+  {a:{t:'Orders',side:'r',pos:540},b:{t:'Payments',side:'l',pos:540},la:'1',lb:'0..*',name:'is paid by'},
+  {a:{t:'Orders',side:'b',pos:835},b:{t:'Shipments',side:'t',pos:1065},la:'1',lb:'0..1',name:'belongs to'}
+];
+function anchor(p){
+  const [x,y]=POS[p.t], w=BOX.w, hh=boxH(p.t);
+  if(p.side==='l') return {x,y:p.pos,side:'l'};
+  if(p.side==='r') return {x:x+w,y:p.pos,side:'r'};
+  if(p.side==='t') return {x:p.pos,y,side:'t'};
+  return {x:p.pos,y:y+hh,side:'b'};
+}
+function route(A,B){
+  const k=A.side+B.side;
+  if(k==='rl'||k==='lr'){ if(Math.abs(A.y-B.y)<1) return {d:`M${A.x} ${A.y}H${B.x}`,lx:(A.x+B.x)/2,ly:A.y+16,anchor:'middle'}; const mx=(A.x+B.x)/2; return {d:`M${A.x} ${A.y}H${mx}V${B.y}H${B.x}`,lx:mx,ly:(A.y+B.y)/2,anchor:'middle'}; }
+  if(k==='bt'||k==='tb'){ if(Math.abs(A.x-B.x)<1) return {d:`M${A.x} ${A.y}V${B.y}`,lx:A.x+8,ly:(A.y+B.y)/2+4,anchor:'start'}; const my=(A.y+B.y)/2; return {d:`M${A.x} ${A.y}V${my}H${B.x}V${B.y}`,lx:(A.x+B.x)/2,ly:my-6,anchor:'middle'}; }
+  if(k==='bl'||k==='br') return {d:`M${A.x} ${A.y}V${B.y}H${B.x}`,lx:(A.x+B.x)/2,ly:B.y-6,anchor:'middle'};
+  if(k==='lt'||k==='rt') return {d:`M${A.x} ${A.y}H${B.x}V${B.y}`,lx:(A.x+B.x)/2,ly:A.y-6,anchor:'middle'};
+  return {d:`M${A.x} ${A.y}L${B.x} ${B.y}`,lx:(A.x+B.x)/2,ly:(A.y+B.y)/2,anchor:'middle'};
+}
+function endLabel(P,txt){
+  const o={r:[5,-5,'start'],l:[-5,-5,'end'],t:[6,-6,'start'],b:[6,15,'start']}[P.side];
+  return s('text',{class:'card-lbl',x:P.x+o[0],y:P.y+o[1],'text-anchor':o[2]},txt);
+}
+let selTable='Orders';
+const detail=h('div',{});
+let gRefs={};
+function selectTable(t){
+  selTable=t;
+  for(const [name,g] of Object.entries(gRefs.boxes)){
+    const related=RELS.some(r=>(r.a.t===t&&r.b.t===name)||(r.b.t===t&&r.a.t===name));
+    g.classList.toggle('sel',name===t); g.classList.toggle('rel',related&&name!==t); g.setAttribute('aria-pressed',name===t);
+  }
+  gRefs.paths.forEach(({el,rel})=>el.classList.toggle('hot',rel.a.t===t||rel.b.t===t));
+  renderDetail();
+}
+function gotoTable(t){showTab('schema');selectTable(t);}
+function renderDetail(){
+  const t=selTable;
+  const refsTo=[...new Set(SCHEMA[t].filter(c=>c.fk).map(c=>c.fk[0]))];
+  const refBy=[...new Set(childRefs(t).map(x=>x[0]))];
+  const colRows=SCHEMA[t].map(c=>h('tr',{},
+    h('td',{class:'mono'},c.n),h('td',{class:'mono'},c.t),
+    h('td',{},
+      c.pk&&h('span',{class:'badge pk'},'PK'),c.pk&&' ',
+      c.ai&&h('span',{class:'badge uq'},'AUTO_INCREMENT'),c.ai&&' ',
+      c.fk&&h('span',{class:'badge fk'},'FK'),c.fk&&h('span',{class:'mono small'},` → ${c.fk[0]}(${c.fk[1]})`),c.fk&&' ',
+      c.uq&&h('span',{class:'badge uq'},'UNIQUE'),c.uq&&' ',
+      h('span',{class:'badge nn'},c.nullable?'NULL allowed':'NOT NULL'))));
+  const {cols,rows}=tableRows(t);
+  detail.replaceChildren(
+    h('div',{class:'card'},
+      h('h3',{},t,' ',h('span',{class:'chip'},`${DB.rows[t].length} rows`),' ',JUNCTION.has(t)&&h('span',{class:'chip'},'junction table')),
+      h('p',{class:'muted'},PURPOSE[t]),
+      h('div',{class:'two'},
+        h('div',{},h('h4',{style:'margin-top:0'},'Columns'),
+          h('div',{class:'table-wrap'},h('table',{class:'data'},h('thead',{},h('tr',{},h('th',{},'column'),h('th',{},'type'),h('th',{},'constraints'))),h('tbody',{},colRows))),
+          h('h4',{},'Relationships'),
+          h('div',{class:'relist'},
+            refsTo.map(x=>h('button',{type:'button',onclick:()=>selectTable(x)},`references ${x}`)),
+            refBy.map(x=>h('button',{type:'button',onclick:()=>selectTable(x)},`referenced by ${x}`)),
+            !refsTo.length&&!refBy.length&&h('span',{class:'muted'},'none'))),
+        h('div',{},h('h4',{style:'margin-top:0'},'Rows'),renderTable(cols,rows,{maxH:360})))));
+}
+function buildSchema(){
+  const root=$('#p-schema');
+  const svg=s('svg',{class:'erd',viewBox:'0 0 1200 850',role:'group','aria-label':'Entity relationship diagram of the 11-table schema'});
+  gRefs={boxes:{},paths:[]};
+  const gl=s('g',{}); svg.append(gl);
+  for(const rel of RELS){
+    const A=anchor(rel.a),B=anchor(rel.b),r=route(A,B);
+    const p=s('path',{class:'rel',d:r.d}); gl.append(p); gRefs.paths.push({el:p,rel});
+    gl.append(s('text',{class:'lbl',x:r.lx,y:r.ly,'text-anchor':r.anchor},rel.name),endLabel(A,rel.la),endLabel(B,rel.lb));
+  }
+  for(const t of TABLES){
+    const [x,y]=POS[t]; const hh=boxH(t);
+    const g=s('g',{class:'tbl'+(JUNCTION.has(t)?' junction':''),tabindex:0,role:'button','aria-label':`${t} table`,'aria-pressed':'false',
+      onclick:()=>selectTable(t),onkeydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectTable(t);}}},
+      s('rect',{class:'box',x,y,width:BOX.w,height:hh,rx:8}),
+      s('path',{class:'head',d:`M${x+1} ${y+BOX.head}V${y+9}a8 8 0 0 1 8-8H${x+BOX.w-9}a8 8 0 0 1 8 8V${y+BOX.head}Z`}),
+      s('line',{x1:x,x2:x+BOX.w,y1:y+BOX.head,y2:y+BOX.head,stroke:'var(--line)'}),
+      s('text',{class:'tname',x:x+10,y:y+19},t));
+    SCHEMA[t].forEach((c,i)=>{
+      const cy=y+BOX.head+13+i*BOX.rowH;
+      g.append(s('text',{x:x+10,y:cy},c.n));
+      const tag=c.pk&&c.fk?'PK FK':c.pk?'PK':c.fk?'FK':c.uq?'UQ':'';
+      if(tag) g.append(s('text',{class:c.pk?'b-pk':c.fk?'b-fk':'b-uq',x:x+BOX.w-8,y:cy,'text-anchor':'end'},tag));
+    });
+    gRefs.boxes[t]=g; svg.append(g);
+  }
+  root.append(
+    h('h2',{},'The 11-table schema'),
+    h('p',{class:'lead'},'Click any table to see its columns, keys and rows. Lines show foreign-key relationships with their cardinalities. Creates and Exhibition_items are the two junction tables.'),
+    h('div',{class:'legend'},h('span',{},h('span',{class:'badge pk'},'PK'),' primary key'),h('span',{},h('span',{class:'badge fk'},'FK'),' foreign key'),h('span',{},h('span',{class:'badge uq'},'UQ'),' unique'),h('span',{},'Orange header = junction table')),
+    h('div',{class:'svgwrap'},svg),
+    h('div',{style:'margin-top:16px'},detail),
+    h('div',{class:'note'},h('b',{},'Why 11 tables? '),'The first ER model had 10 entities. Artists and Artworks are many-to-many (an artist creates many artworks and an artwork can have several artists), so the Creates junction table was added and the count became 11. Every column is NOT NULL except Artists.pseudonym.'));
+  selectTable(selTable); onChange(renderDetail);
+}
+
+/* ================= 3. SELL AN ARTWORK ================= */
+const STEPS=['Artwork','Customer','Order','Payment','Delivery','Review'];
+const COMPANIES=['LP Express','DPD','DHL','Omniva'];
+const METHODS=['Card','Bank transfer','PayPal','Cash'];
+let W;
+const sellRoot=h('div',{});
+function newTracking(){let n;do{n=700000000+Math.floor(Math.random()*99999999);}while(DB.rows.Shipments.some(x=>x.tracking_number===n));return n;}
+function nextCustomerId(){let n=1000+DB.rows.Customers.length+1;while(by('Customers','personal_id','C-'+n))n++;return 'C-'+n;}
+const defaultPrice=a=>Math.round(a.length*a.width/8/10)*10+200;
+function resetWizard(){
+  W={step:0,artwork:null,custMode:'existing',custId:DB.rows.Customers[0]?DB.rows.Customers[0].personal_id:'',
+    nc:{personal_id:nextCustomerId(),first_name:'',last_name:'',email:'',phone_number:''},
+    date:TODAY,price:'',nPay:1,method:'Card',billing:'',deliver:true,tracking:String(newTracking()),company:'LP Express',insurance:true,insured:'',result:null};
+}
+function buyerId(){return W.custMode==='new'?W.nc.personal_id:W.custId;}
+function validateStep(i){
+  if(i===0&&!W.artwork) return 'Choose an artwork to continue.';
+  if(i===1){
+    if(W.custMode==='existing') return by('Customers','personal_id',W.custId)?'':'Choose a customer.';
+    if(Object.values(W.nc).some(v=>String(v).trim()==='')) return 'Every Customers column is NOT NULL, so all five fields are required.';
+    if(by('Customers','personal_id',W.nc.personal_id.trim())) return `personal_id ${W.nc.personal_id} already exists (primary key).`;
+  }
+  if(i===2){
+    if(!(Number(W.price)>0)) return 'Enter a price greater than 0.';
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(W.date)) return 'Enter a valid sale date.';
+    if(!(Number.isInteger(Number(W.nPay))&&W.nPay>=1&&W.nPay<=12)) return 'Number of payments must be between 1 and 12.';
+  }
+  if(i===3&&W.billing.trim()==='') return 'billing_address is required (NOT NULL).';
+  if(i===4&&W.deliver){
+    if(!/^\d+$/.test(String(W.tracking).trim())) return 'tracking_number must be a whole number.';
+    if(!(Number(W.insured)>=0)||String(W.insured).trim()==='') return 'Enter an insured value (0 or more).';
+  }
+  return '';
+}
+function saleSteps(){
+  const st=[]; const a=by('Artworks','no',W.artwork); const id=buyerId().trim(); const n=Number(W.nPay);
+  st.push({sql:'START TRANSACTION;',exec:()=>({ok:true,msg:'Transaction started.'})});
+  if(W.custMode==='new'){
+    const c=W.nc;
+    st.push({sql:sqlInsert('Customers',['personal_id','first_name','last_name','email','phone_number'],[[c.personal_id.trim(),c.first_name,c.last_name,c.email,c.phone_number]]),
+      exec:()=>{const r=insert('Customers',{...c,personal_id:c.personal_id.trim()});return r.ok?{ok:true,msg:'1 row inserted.'}:r;}});
+  }
+  st.push({sql:sqlInsert('Orders',['sale_date','price','number_of_payments','fk_Customerpersonal_id','fk_Artworkno'],[[W.date,Number(W.price),n,id,a.no]]),
+    exec:ctx=>{const r=insert('Orders',{sale_date:W.date,price:W.price,number_of_payments:n,fk_Customerpersonal_id:id,fk_Artworkno:a.no});
+      if(!r.ok) return r; ctx.orderNo=r.row.orderNo; return {ok:true,msg:`1 row inserted. orderNo = ${r.row.orderNo} (AUTO_INCREMENT)`};}});
+  st.push({sql:'SET @order_no = LAST_INSERT_ID();',exec:()=>({ok:true,msg:'The new order number is remembered for the next statements.'})});
+  const payRows=[...Array(n)].map((_,i)=>[W.method,i===0?'Completed':'Pending',W.billing,n>1?1:0,{raw:'@order_no'}]);
+  st.push({sql:sqlInsert('Payments',['payment_method','transaction_status','billing_address','in_installments','fk_OrderorderNo'],payRows),
+    exec:ctx=>{for(const r of payRows){const x=insert('Payments',{payment_method:r[0],transaction_status:r[1],billing_address:r[2],in_installments:r[3],fk_OrderorderNo:ctx.orderNo});if(!x.ok)return x;}
+      return {ok:true,msg:`${n} row${n>1?'s':''} inserted (one multi-row INSERT).`};}});
+  if(W.deliver){
+    st.push({sql:sqlInsert('Shipments',['tracking_number','shipping_company','insurance','insured_value','fk_OrderorderNo'],[[Number(W.tracking),W.company,W.insurance?1:0,Number(W.insured),{raw:'@order_no'}]]),
+      exec:ctx=>{const r=insert('Shipments',{tracking_number:W.tracking,shipping_company:W.company,insurance:W.insurance?1:0,insured_value:W.insured,fk_OrderorderNo:ctx.orderNo});return r.ok?{ok:true,msg:'1 row inserted.'}:r;}});
+  }
+  st.push({sql:`UPDATE Artworks\nSET sales_status = 'Sold'\nWHERE no = ${a.no};`,exec:()=>{const r=update('Artworks',x=>x.no===a.no,{sales_status:'Sold'});return r.ok?{ok:true,msg:`${r.affected} row affected.`}:r;}});
+  st.push({sql:'COMMIT;',exec:()=>({ok:true,msg:'Transaction committed.'})});
+  return st;
+}
+function confirmSale(){
+  const snap=snapshot(); const log=[]; const ctx={}; let failed=null;
+  for(const stp of saleSteps()){
+    const r=stp.exec(ctx);
+    if(!r.ok){log.push({sql:stp.sql,ok:false,msg:r.msg});failed=r;break;}
+    log.push({sql:stp.sql,ok:true,msg:r.msg});
+  }
+  if(failed){restore(snap);log.push({sql:'ROLLBACK;',ok:true,msg:'Transaction rolled back. Nothing was saved, not even the rows that were inserted before the error.'});W.result={ok:false,log};}
+  else{W.result={ok:true,log,orderNo:ctx.orderNo};}
+  changed(); renderSell();
+}
+function stepArtwork(){
+  const list=DB.rows.Artworks.filter(a=>a.sales_status==='For sale');
+  if(!list.length) return h('p',{class:'empty'},'Every artwork is sold. Use “Reset demo data” at the top to start again.');
+  return h('div',{},
+    h('p',{class:'muted'},'This is the customer’s starting point: only artworks whose sales_status is “For sale”, with their artists and gallery.'),
+    h('div',{class:'artcard-grid'},list.map(a=>{
+      const hue=([...a.title].reduce((x,c)=>x+c.charCodeAt(0),0)*37)%360;
+      return h('button',{type:'button',class:'art'+(W.artwork===a.no?' sel':''),'aria-pressed':W.artwork===a.no,
+        onclick:()=>{W.artwork=a.no;W.price=String(defaultPrice(a));W.insured='';renderSell();}},
+        h('div',{class:'swatch',style:`background:linear-gradient(135deg,hsl(${hue} 55% 64%),hsl(${(hue+45)%360} 50% 42%))`}),
+        h('b',{},a.title),
+        h('small',{},artistsOf(a.no).join(' & ')),
+        h('small',{},`${a.art_medium}, ${a.year_created}`),
+        h('small',{},`${a.length}×${a.width}×${a.height} cm · ${gcity(a.fk_Galleryid_Gallery)}`));
+    })));
+}
+function stepCustomer(){
+  const mode=(v,l)=>h('label',{style:'display:inline-block;margin-right:18px;font-weight:600'},h('input',{type:'radio',name:'cm',checked:W.custMode===v,onchange:()=>{W.custMode=v;renderSell();}}),l);
+  const nf=(k,l)=>h('label',{class:'f'},l,h('input',{type:'text',value:W.nc[k],oninput:e=>{W.nc[k]=e.target.value;}}));
+  const c=by('Customers','personal_id',W.custId);
+  return h('div',{},
+    h('p',{class:'muted'},'An order must point at an existing customer (foreign key), so a new buyer is inserted into Customers first.'),
+    h('div',{style:'margin-bottom:14px'},mode('existing','Existing customer'),mode('new','New customer')),
+    W.custMode==='existing'
+      ?h('div',{},h('label',{class:'f'},'Customer',h('select',{value:W.custId,onchange:e=>{W.custId=e.target.value;renderSell();}},DB.rows.Customers.map(x=>h('option',{value:x.personal_id},`${x.first_name} ${x.last_name} (${x.personal_id})`)))),
+          c&&h('dl',{class:'kv'},h('dt',{},'email'),h('dd',{},c.email),h('dt',{},'phone_number'),h('dd',{},c.phone_number),
+            h('dt',{},'earlier orders'),h('dd',{},DB.rows.Orders.filter(o=>o.fk_Customerpersonal_id===c.personal_id).length)))
+      :h('div',{class:'row'},nf('personal_id','personal_id (primary key)'),nf('first_name','first_name'),nf('last_name','last_name'),nf('email','email'),nf('phone_number','phone_number')));
+}
+function stepOrder(){
+  const a=by('Artworks','no',W.artwork);
+  return h('div',{},
+    h('p',{class:'muted'},`The order links the buyer to “${a.title}”. orderNo is not typed in: MySQL generates it (AUTO_INCREMENT).`),
+    h('div',{class:'row3'},
+      h('label',{class:'f'},'sale_date',h('input',{type:'date',value:W.date,oninput:e=>{W.date=e.target.value;}})),
+      h('label',{class:'f'},'price (EUR)',h('input',{type:'number',min:'1',step:'any',value:W.price,oninput:e=>{W.price=e.target.value;}})),
+      h('label',{class:'f'},'number_of_payments',h('select',{value:String(W.nPay),onchange:e=>{W.nPay=Number(e.target.value);}},[...Array(12)].map((_,i)=>h('option',{value:String(i+1)},i+1))))));
+}
+function stepPayment(){
+  const prev=h('div',{});
+  const draw=()=>{const n=Number(W.nPay);prev.replaceChildren(renderTable(['payment_method','transaction_status','billing_address','in_installments'],
+    [...Array(n)].map((_,i)=>[W.method,i===0?'Completed':'Pending',W.billing||'…',n>1?1:0]),{maxH:240}));};
+  draw();
+  return h('div',{},
+    h('p',{class:'muted'},`One payment record is created per payment (${W.nPay}). The first is completed at the time of sale; the rest wait as Pending. in_installments is 1 when there is more than one payment.`),
+    h('div',{class:'row'},
+      h('label',{class:'f'},'payment_method',h('select',{value:W.method,onchange:e=>{W.method=e.target.value;draw();}},METHODS.map(m=>h('option',{value:m},m)))),
+      h('label',{class:'f'},'billing_address',h('input',{type:'text',placeholder:'e.g. Gedimino pr. 40, Vilnius',value:W.billing,oninput:e=>{W.billing=e.target.value;draw();}}))),
+    h('h4',{},'Rows that will be added to Payments'),prev);
+}
+function stepDelivery(){
+  if(W.insured==='') W.insured=W.price;
+  return h('div',{},
+    h('p',{class:'muted'},'If the customer wants delivery, exactly one consignment is linked to the order. Buyers who collect the artwork from the gallery get no Shipments row.'),
+    h('label',{style:'font-weight:600;display:block;margin-bottom:12px'},h('input',{type:'checkbox',checked:W.deliver,onchange:e=>{W.deliver=e.target.checked;renderSell();}}),'Deliver to the customer'),
+    W.deliver&&h('div',{},
+      h('div',{class:'row'},
+        h('label',{class:'f'},'tracking_number ',h('span',{class:'hint'},'(must be unique)'),h('input',{type:'text',inputmode:'numeric',value:W.tracking,oninput:e=>{W.tracking=e.target.value;}})),
+        h('label',{class:'f'},'shipping_company',h('select',{value:W.company,onchange:e=>{W.company=e.target.value;}},COMPANIES.map(m=>h('option',{value:m},m))))),
+      h('div',{class:'row'},
+        h('label',{class:'f',style:'padding-top:22px'},h('input',{type:'checkbox',checked:W.insurance,onchange:e=>{W.insurance=e.target.checked;}}),'insurance'),
+        h('label',{class:'f'},'insured_value',h('input',{type:'number',min:'0',step:'any',value:W.insured,oninput:e=>{W.insured=e.target.value;}}))),
+      h('div',{class:'note'},h('b',{},'Try it: '),'type 700112233, which an earlier shipment already uses. The UNIQUE constraint rejects it on the final step and the whole sale is rolled back.')));
+}
+function stepReview(){
+  const a=by('Artworks','no',W.artwork); const id=buyerId().trim();
+  const c=W.custMode==='new'?W.nc:by('Customers','personal_id',id);
+  return h('div',{},
+    h('p',{class:'muted'},'The whole sale runs as one transaction: either every statement succeeds or none of them is kept.'),
+    h('dl',{class:'kv'},
+      h('dt',{},'Artwork'),h('dd',{},`${a.title} (no ${a.no})`),
+      h('dt',{},'Buyer'),h('dd',{},`${c.first_name} ${c.last_name}${W.custMode==='new'?' (new customer)':''}`),
+      h('dt',{},'Price'),h('dd',{},`${W.price} EUR on ${W.date}`),
+      h('dt',{},'Payments'),h('dd',{},`${W.nPay} via ${W.method}`),
+      h('dt',{},'Delivery'),h('dd',{},W.deliver?`${W.company}, tracking ${W.tracking}${W.insurance?', insured for '+W.insured:''}`:'Collected at the gallery')),
+    h('h4',{},'SQL that will run'),
+    sqlBlock(saleSteps().map(x=>x.sql).join('\n\n')),
+    h('div',{class:'note'},'Marking the artwork as Sold is application logic added in this demo; the report does not spell out this step. It is what makes the for-sale count drop.'));
+}
+function resultPanel(){
+  const r=W.result;
+  const log=h('div',{},r.log.map(e=>h('div',{class:'entry '+(e.ok?'ok':'err')},h('pre',{class:'sql',html:hl(e.sql)}),h('div',{class:'out'},(e.ok?'✓ ':'✕ ')+e.msg))));
+  if(r.ok){
+    const n=Number(W.nPay);
+    return h('div',{},
+      h('h3',{},'Sale completed'),
+      h('div',{},h('span',{class:'pill'},'1 order'),h('span',{class:'pill'},`${n} payment${n>1?'s':''}`),W.deliver&&h('span',{class:'pill'},'1 shipment'),W.custMode==='new'&&h('span',{class:'pill'},'1 new customer'),h('span',{class:'pill'},'artwork marked Sold')),
+      h('p',{class:'muted',style:'margin-top:10px'},`Artworks for sale: ${DB.rows.Artworks.filter(a=>a.sales_status==='For sale').length}. Open the Query lab to see this order in the joins, or the Schema map to inspect the new rows.`),
+      h('h4',{},'What the database did'),log,
+      h('div',{class:'wiz-nav'},h('button',{class:'btn ghost',type:'button',onclick:()=>gotoTable('Orders')},'Inspect Orders'),h('button',{class:'btn',type:'button',onclick:()=>{resetWizard();renderSell();}},'Sell another artwork')));
+  }
+  return h('div',{},
+    h('h3',{style:'color:var(--err)'},'The database refused the sale'),
+    h('p',{},r.log.find(e=>!e.ok).msg),
+    h('h4',{},'What happened'),log,
+    h('div',{class:'wiz-nav'},h('span',{}),h('button',{class:'btn',type:'button',onclick:()=>{W.result=null;W.step=4;renderSell();}},'Go back and fix it')));
+}
+function renderSell(){
+  const root=sellRoot;
+  if(W.result){root.replaceChildren(h('div',{class:'card'},resultPanel()));return;}
+  const bodies=[stepArtwork,stepCustomer,stepOrder,stepPayment,stepDelivery,stepReview];
+  const warn=h('div',{class:'warn',role:'alert'});
+  root.replaceChildren(h('div',{class:'card'},
+    h('div',{class:'steps'},STEPS.map((l,i)=>h('div',{class:'stepi'+(i===W.step?' cur':i<W.step?' done':''),'aria-current':i===W.step?'step':null},h('i',{},i<W.step?'✓':i+1),l))),
+    h('h3',{},`Step ${W.step+1}: ${['Choose an artwork','Who is buying?','Create the order','Record the payment','Arrange delivery','Review and confirm'][W.step]}`),
+    bodies[W.step](),
+    warn,
+    h('div',{class:'wiz-nav'},
+      h('button',{class:'btn ghost',type:'button',disabled:W.step===0,onclick:()=>{W.step--;renderSell();}},'← Back'),
+      W.step<5
+        ?h('button',{class:'btn',type:'button',onclick:()=>{const m=validateStep(W.step);if(m){warn.textContent=m;return;}W.step++;renderSell();}},'Next →')
+        :h('button',{class:'btn',type:'button',onclick:confirmSale},'Confirm sale'))));
+}
+function buildSell(){
+  $('#p-sell').append(
+    h('h2',{},'Sell an artwork, end to end'),
+    h('p',{class:'lead'},'A purchase touches five tables. Walk through it the way the application would: pick an artwork, identify the buyer, create the order, record payments and arrange shipping. The SQL for every step is shown, and the foreign keys decide the order.'),
+    h('div',{style:'margin-top:18px'},sellRoot));
+  renderSell();
+}
+
+/* ================= 4. CRUD ON GALLERIES ================= */
+const crud={log:[],touched:null,mode:'create'};
+const cf={city:'Birstonas',street:'Vytauto g.',bn:'10',apt:'1',zip:'59101'};
+const uf={id:'6',street:'Gedimino g.',bn:'12'};
+const df={id:''};
+const rf={city:'Kaunas'};
+const consoleBox=h('div',{});
+const galBox=h('div',{});
+const formBox=h('div',{});
+function logEntry(e){crud.log.unshift(e);crud.log=crud.log.slice(0,20);renderConsole();}
+function renderConsole(){
+  consoleBox.replaceChildren(...(crud.log.length
+    ?crud.log.map(e=>h('div',{class:'entry '+(e.ok?'ok':'err')},sqlBlock(e.sql),h('div',{class:'out'},(e.ok?'✓ ':'✕ ')+e.msg),
+        (e.tables||[]).map(t=>h('div',{class:'etable'},t.label&&h('div',{class:'cap'},t.label),renderTable(t.cols,t.rows,{maxH:220})))))
+    :[h('div',{class:'empty'},'Statements you run appear here, newest first.')]));
+}
+function renderGalleries(){
+  const {cols,rows}=tableRows('Galleries'); const idIdx=cols.indexOf('id_Gallery');
+  galBox.replaceChildren(renderTable(cols,rows,{maxH:330,flash:r=>r[idIdx]===crud.touched}));
+  if(crud.touched!==null){const t=crud.touched;setTimeout(()=>{if(crud.touched===t)crud.touched=null;},2600);}
+}
+const galOpts=()=>DB.rows.Galleries.map(g=>h('option',{value:String(g.id_Gallery)},`${g.id_Gallery} · ${g.city}, ${g.street} ${g.building_number}`));
+const galVerify=(cond,sqlWhere)=>{const {cols,rows}=tableRows('Galleries');const i=cols.indexOf('id_Gallery');return {cols,rows:rows.filter(r=>cond(Object.fromEntries(cols.map((c,k)=>[c,r[k]]))))};};
+function formCreate(){
+  const prev=h('div',{});
+  const sql=()=>`INSERT INTO Galleries (city, street, building_number, \`apartment/house_number\`, ZIP_code)\nVALUES (${qn(cf.city)}, ${qn(cf.street)}, ${qn(cf.bn,true)}, ${qn(cf.apt,true)}, ${qn(cf.zip,true)});`;
+  const upd=()=>prev.replaceChildren(sqlBlock(sql()));
+  const f=(l,k)=>h('label',{class:'f'},l,h('input',{type:'text',value:cf[k],oninput:e=>{cf[k]=e.target.value;upd();}}));
+  upd();
+  return h('div',{},
+    h('p',{class:'muted'},'Add a gallery. Note there is no id field: id_Gallery is generated automatically because the column is AUTO_INCREMENT.'),
+    h('div',{class:'row'},f('city','city'),f('street','street'),f('building_number','bn'),f('apartment/house_number','apt'),f('ZIP_code','zip')),
+    prev,
+    h('div',{style:'margin-top:10px'},h('button',{class:'btn',type:'button',onclick:()=>{
+      const stmt=sql();
+      const r=insert('Galleries',{city:cf.city,street:cf.street,building_number:cf.bn,'apartment/house_number':cf.apt,ZIP_code:cf.zip});
+      if(!r.ok){logEntry({sql:stmt,ok:false,msg:r.msg});return;}
+      crud.touched=r.row.id_Gallery;
+      logEntry({sql:stmt+`\n\n-- verification\nSELECT *\nFROM Galleries\nWHERE city = ${q(r.row.city)};`,ok:true,msg:`1 row inserted. id_Gallery = ${r.row.id_Gallery} (generated by AUTO_INCREMENT).`,
+        tables:[{label:'Verification',...galVerify(g=>g.city===r.row.city)}]});
+      changed();}},'Run INSERT')),
+    h('p',{class:'small muted',style:'margin-top:10px'},'The report’s database shows id 66 for this row because it holds more rows than the 20 loaded here.'));
+}
+function formRead(){
+  const prev=h('div',{});
+  const sql=()=>rf.city===''?'SELECT *\nFROM Galleries;':`SELECT *\nFROM Galleries\nWHERE city = ${q(rf.city)};`;
+  const upd=()=>prev.replaceChildren(sqlBlock(sql()));
+  const cities=[...new Set(DB.rows.Galleries.map(g=>g.city))].sort();
+  if(rf.city!==''&&!cities.includes(rf.city)) rf.city='';
+  upd();
+  return h('div',{},
+    h('p',{class:'muted'},'Look up galleries by city. This is the same kind of check used to verify an insert.'),
+    h('label',{class:'f'},'city',h('select',{value:rf.city,onchange:e=>{rf.city=e.target.value;upd();}},h('option',{value:''},'(all cities)'),cities.map(c=>h('option',{value:c},c)))),
+    prev,
+    h('div',{style:'margin-top:10px'},h('button',{class:'btn',type:'button',onclick:()=>{
+      const rows=tableRows('Galleries'); const t={...galVerify(g=>rf.city===''||g.city===rf.city)};
+      logEntry({sql:sql(),ok:true,msg:`${t.rows.length} row${t.rows.length===1?'':'s'} returned.`,tables:[t]});}},'Run SELECT')));
+}
+function formUpdate(){
+  const prev=h('div',{});
+  if(!by('Galleries','id_Gallery',Number(uf.id))&&DB.rows.Galleries.length){uf.id=String(DB.rows.Galleries[0].id_Gallery);}
+  const sql=()=>`UPDATE Galleries\nSET street = ${qn(uf.street)}, building_number = ${qn(uf.bn,true)}\nWHERE id_Gallery = ${qn(uf.id,true)};`;
+  const upd=()=>prev.replaceChildren(sqlBlock(sql()));
+  const stI=h('input',{type:'text',value:uf.street,oninput:e=>{uf.street=e.target.value;upd();}});
+  const bnI=h('input',{type:'text',value:uf.bn,oninput:e=>{uf.bn=e.target.value;upd();}});
+  upd();
+  return h('div',{},
+    h('p',{class:'muted'},'Correct a gallery’s address. The report updates street and building number for one gallery and checks the row before and after.'),
+    h('label',{class:'f'},'Gallery to update (id_Gallery)',h('select',{value:uf.id,onchange:e=>{uf.id=e.target.value;const g=by('Galleries','id_Gallery',Number(uf.id));if(g){uf.street=g.street;uf.bn=String(g.building_number);stI.value=uf.street;bnI.value=uf.bn;}upd();}},galOpts())),
+    h('div',{class:'row'},h('label',{class:'f'},'new street',stI),h('label',{class:'f'},'new building_number',bnI)),
+    prev,
+    h('div',{style:'margin-top:10px'},h('button',{class:'btn',type:'button',onclick:()=>{
+      const id=Number(uf.id); const before=galVerify(g=>g.id_Gallery===id); const stmt=sql();
+      const g0=by('Galleries','id_Gallery',id);
+      const same=g0&&g0.street===uf.street&&String(g0.building_number)===String(uf.bn).trim();
+      const r=update('Galleries',g=>g.id_Gallery===id,{street:uf.street,building_number:uf.bn});
+      if(!r.ok){logEntry({sql:stmt,ok:false,msg:r.msg});return;}
+      const aff=same?0:r.affected; crud.touched=id;
+      logEntry({sql:`-- verification BEFORE updating\nSELECT * FROM Galleries WHERE id_Gallery = ${id};\n\n${stmt}\n\n-- verification AFTER updating\nSELECT * FROM Galleries WHERE id_Gallery = ${id};`,
+        ok:true,msg:`${aff} row${aff===1?'':'s'} affected.${same?' (the new values equal the old ones)':''}`,tables:[{label:'Before',...before},{label:'After',...galVerify(g=>g.id_Gallery===id)}]});
+      changed();}},'Run UPDATE')));
+}
+function formDelete(){
+  const prev=h('div',{});
+  const ids=DB.rows.Galleries.map(g=>String(g.id_Gallery));
+  if(!ids.includes(df.id)) df.id=ids[ids.length-1]||'';
+  const sql=()=>`DELETE FROM Galleries\nWHERE id_Gallery = ${qn(df.id,true)};`;
+  const upd=()=>prev.replaceChildren(sqlBlock(sql()));
+  upd();
+  return h('div',{},
+    h('p',{class:'muted'},'Remove a gallery. Try the one you just added, then try a gallery that owns artworks (for example 1) and watch the foreign key refuse.'),
+    h('label',{class:'f'},'Gallery to delete (id_Gallery)',h('select',{value:df.id,onchange:e=>{df.id=e.target.value;upd();}},galOpts())),
+    prev,
+    h('div',{style:'margin-top:10px'},h('button',{class:'btn',type:'button',onclick:()=>{
+      const id=Number(df.id); const stmt=sql(); const r=remove('Galleries',g=>g.id_Gallery===id);
+      if(!r.ok){logEntry({sql:stmt,ok:false,msg:r.msg});return;}
+      logEntry({sql:`${stmt}\n\n-- verification: confirm that the record no longer exists\nSELECT * FROM Galleries WHERE id_Gallery = ${id};`,ok:true,msg:`${r.affected} row deleted.`,
+        tables:[{label:'Verification',...galVerify(g=>g.id_Gallery===id)}]});
+      changed();}},'Run DELETE')));
+}
+const GUARDS=[
+  {t:'Insert a gallery with no city',sql:"INSERT INTO Galleries (city, street, building_number, `apartment/house_number`, ZIP_code)\nVALUES (NULL, 'Test g.', 1, 1, 10000);",
+    run:()=>insert('Galleries',{city:null,street:'Test g.',building_number:1,'apartment/house_number':1,ZIP_code:10000}),why:'NOT NULL on every column except pseudonym'},
+  {t:'Insert an artwork for a gallery that does not exist',sql:"INSERT INTO Artworks (title, year_created, art_medium, length, width, height, sales_status, fk_Galleryid_Gallery)\nVALUES ('Ghost', 2024, 'Oil on canvas', 50, 50, 2, 'For sale', 999);",
+    run:()=>insert('Artworks',{title:'Ghost',year_created:2024,art_medium:'Oil on canvas',length:50,width:50,height:2,sales_status:'For sale',fk_Galleryid_Gallery:999}),why:'Foreign key: the gallery must exist first (the insertion-order limitation in the report)'},
+  {t:'Delete a gallery that still owns artworks',sql:'DELETE FROM Galleries\nWHERE id_Gallery = 1;',run:()=>remove('Galleries',g=>g.id_Gallery===1),why:'Foreign key blocks deleting a parent that child rows point to'},
+  {t:'Reuse a tracking number',sql:"INSERT INTO Shipments (tracking_number, shipping_company, insurance, insured_value, fk_OrderorderNo)\nVALUES (700112233, 'DPD', 0, 0, 3);",
+    run:()=>insert('Shipments',{tracking_number:700112233,shipping_company:'DPD',insurance:0,insured_value:0,fk_OrderorderNo:3}),why:'UNIQUE constraint added to tracking_number'},
+  {t:'Give an order a second shipment',sql:"INSERT INTO Shipments (tracking_number, shipping_company, insurance, insured_value, fk_OrderorderNo)\nVALUES (700999001, 'DHL', 0, 0, 1);",
+    run:()=>insert('Shipments',{tracking_number:700999001,shipping_company:'DHL',insurance:0,insured_value:0,fk_OrderorderNo:1}),why:'fk_OrderorderNo is UNIQUE, so an order has at most one shipment'},
+  {t:'Pair the same artist and artwork twice',sql:'INSERT INTO Creates (fk_Artworkno, fk_Artistid_Artist)\nVALUES (1, 1);',run:()=>insert('Creates',{fk_Artworkno:1,fk_Artistid_Artist:1}),why:'Composite primary key on the two foreign keys'},
+  {t:'Create an order for an unknown customer',sql:"INSERT INTO Orders (sale_date, price, number_of_payments, fk_Customerpersonal_id, fk_Artworkno)\nVALUES ('2026-11-01', 100, 1, 'C-9999', 1);",
+    run:()=>insert('Orders',{sale_date:'2026-11-01',price:100,number_of_payments:1,fk_Customerpersonal_id:'C-9999',fk_Artworkno:1}),why:'Orders must reference an existing customer'}
+];
+function runGuard(g){
+  const snap=snapshot(); const r=g.run();
+  if(r.ok){restore(snap);logEntry({sql:g.sql,ok:true,msg:'Unexpectedly succeeded; the demo reverted it.'});return;}
+  logEntry({sql:g.sql,ok:false,msg:r.msg+'  [rule: '+g.why+']'});
+}
+function renderForm(){
+  formBox.replaceChildren(({create:formCreate,read:formRead,update:formUpdate,delete:formDelete})[crud.mode]());
+}
+function buildCrud(){
+  const modes=[['create','Create'],['read','Read'],['update','Update'],['delete','Delete']];
+  const seg=h('div',{class:'seg',role:'group','aria-label':'Operation'},modes.map(([id,l])=>h('button',{type:'button','aria-pressed':crud.mode===id,onclick:e=>{crud.mode=id;[...e.currentTarget.parentNode.children].forEach(b=>b.setAttribute('aria-pressed',b===e.currentTarget));renderForm();}},l)));
+  $('#p-crud').append(
+    h('h2',{},'CRUD operations on Galleries'),
+    h('p',{class:'lead'},'The four operations from the report, run on the Galleries table. Edit the values, read the SQL that will be sent, run it, and watch the table and the verification queries respond.'),
+    h('div',{class:'two',style:'margin-top:18px'},
+      h('div',{},h('div',{class:'card'},seg,h('div',{style:'margin-top:16px'},formBox)),
+        h('div',{class:'card'},h('h3',{},'Integrity guard'),h('p',{class:'muted'},'The schema’s keys and constraints at work. Each statement below is invalid on purpose; the database refuses it and nothing changes.'),
+          h('div',{style:'display:grid;gap:8px'},GUARDS.map(g=>h('button',{class:'btn ghost',type:'button',style:'text-align:left',onclick:()=>runGuard(g)},'✕ '+g.t))))),
+      h('div',{},h('div',{class:'card'},h('h3',{},'Galleries table (live)'),galBox),
+        h('div',{class:'card'},h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'},h('h3',{},'SQL console'),h('button',{class:'btn ghost sm',type:'button',onclick:()=>{crud.log=[];renderConsole();}},'Clear')),consoleBox))));
+  renderForm(); renderGalleries(); renderConsole();
+  onChange(()=>{renderGalleries();renderForm();});
+}
+
+/* ================= 5. QUERY LAB ================= */
+const QUERIES=[
+  {rep:true,title:'Read: artworks for sale',desc:'Filters Artworks on sales_status.',
+    sql:"SELECT no, title, year_created, art_medium\nFROM Artworks\nWHERE sales_status = 'For sale';",
+    run:()=>({cols:['no','title','year_created','art_medium'],rows:DB.rows.Artworks.filter(a=>a.sales_status==='For sale').map(a=>[a.no,a.title,a.year_created,a.art_medium])})},
+  {rep:true,title:'Verification: count the matching artworks',desc:'COUNT(*) collapses the rows into one number. After you sell an artwork it drops by one; run it again to see.',
+    sql:"SELECT COUNT(*) AS for_sale\nFROM Artworks\nWHERE sales_status = 'For sale';",
+    run:()=>({cols:['for_sale'],rows:[[DB.rows.Artworks.filter(a=>a.sales_status==='For sale').length]]})},
+  {rep:true,title:'JOIN: artworks and their galleries',desc:'Follows the foreign key Artworks.fk_Galleryid_Gallery to Galleries, so the city is stored once and looked up here.',
+    sql:"SELECT a.no, a.title, g.city AS gallery_city\nFROM Artworks AS a\nJOIN Galleries AS g\nON a.fk_Galleryid_Gallery = g.id_Gallery\nWHERE a.no BETWEEN 1 AND 5\nORDER BY a.no;",
+    run:()=>({cols:['no','title','gallery_city'],rows:DB.rows.Artworks.filter(a=>a.no>=1&&a.no<=5).sort((x,y)=>x.no-y.no).map(a=>[a.no,a.title,gcity(a.fk_Galleryid_Gallery)])})},
+  {rep:true,title:'GROUP BY: available artworks per medium',desc:'Groups the for-sale artworks by art_medium and counts each group.',
+    sql:"SELECT art_medium, COUNT(*) AS artwork_count\nFROM Artworks\nWHERE sales_status = 'For sale'\nGROUP BY art_medium\nORDER BY artwork_count DESC, art_medium;",
+    run:()=>{const m={};DB.rows.Artworks.filter(a=>a.sales_status==='For sale').forEach(a=>{m[a.art_medium]=(m[a.art_medium]||0)+1;});
+      return {cols:['art_medium','artwork_count'],rows:Object.entries(m).sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1))};}},
+  {rep:false,title:'Many-to-many: who created what',desc:'Goes through the Creates junction table. Artworks with two artists appear twice.',
+    sql:"SELECT a.no, a.title, CONCAT(ar.first_name, ' ', ar.last_name) AS artist, ar.citizenship\nFROM Artworks AS a\nJOIN Creates AS c ON c.fk_Artworkno = a.no\nJOIN Artists AS ar ON ar.id_Artist = c.fk_Artistid_Artist\nORDER BY a.no, ar.id_Artist;",
+    run:()=>({cols:['no','title','artist','citizenship'],rows:DB.rows.Creates.map(c=>({a:by('Artworks','no',c.fk_Artworkno),ar:by('Artists','id_Artist',c.fk_Artistid_Artist)})).sort((x,y)=>x.a.no-y.a.no||x.ar.id_Artist-y.ar.id_Artist).map(x=>[x.a.no,x.a.title,x.ar.first_name+' '+x.ar.last_name,x.ar.citizenship])})},
+  {rep:false,title:'Sales overview',desc:'Joins an order to its artwork and its customer. Sell an artwork in tab 3 and this list grows.',
+    sql:"SELECT o.orderNo, o.sale_date, a.title,\n       CONCAT(c.first_name, ' ', c.last_name) AS customer,\n       o.price, o.number_of_payments\nFROM Orders AS o\nJOIN Artworks AS a ON a.no = o.fk_Artworkno\nJOIN Customers AS c ON c.personal_id = o.fk_Customerpersonal_id\nORDER BY o.orderNo;",
+    run:()=>({cols:['orderNo','sale_date','title','customer','price','number_of_payments'],rows:DB.rows.Orders.slice().sort((a,b)=>a.orderNo-b.orderNo).map(o=>{const c=by('Customers','personal_id',o.fk_Customerpersonal_id);return [o.orderNo,o.sale_date,by('Artworks','no',o.fk_Artworkno).title,c.first_name+' '+c.last_name,o.price,o.number_of_payments];})})},
+  {rep:false,title:'Exhibition programme',desc:'Exhibitions, their host galleries and the artworks on display, through the Exhibition_items junction table.',
+    sql:"SELECT e.exhibition_name, g.city, a.title, ei.display_date\nFROM Exhibitions AS e\nJOIN Galleries AS g ON g.id_Gallery = e.fk_Galleryid_Gallery\nJOIN Exhibition_items AS ei ON ei.fk_Exhibitionid_Exhibition = e.id_Exhibition\nJOIN Artworks AS a ON a.no = ei.fk_Artworkno\nORDER BY e.id_Exhibition, ei.display_date;",
+    run:()=>({cols:['exhibition_name','city','title','display_date'],rows:DB.rows.Exhibition_items.map(ei=>({ei,e:by('Exhibitions','id_Exhibition',ei.fk_Exhibitionid_Exhibition)})).sort((x,y)=>x.e.id_Exhibition-y.e.id_Exhibition||(x.ei.display_date<y.ei.display_date?-1:x.ei.display_date>y.ei.display_date?1:0)).map(x=>[x.e.exhibition_name,gcity(x.e.fk_Galleryid_Gallery),by('Artworks','no',x.ei.fk_Artworkno).title,x.ei.display_date])})},
+  {rep:false,title:'Orders with pending payments',desc:'Counts Pending payment records per order, which is how installment plans are tracked.',
+    sql:"SELECT o.orderNo, a.title, COUNT(*) AS pending_payments\nFROM Payments AS p\nJOIN Orders AS o ON o.orderNo = p.fk_OrderorderNo\nJOIN Artworks AS a ON a.no = o.fk_Artworkno\nWHERE p.transaction_status = 'Pending'\nGROUP BY o.orderNo, a.title\nORDER BY o.orderNo;",
+    run:()=>({cols:['orderNo','title','pending_payments'],rows:DB.rows.Orders.slice().sort((a,b)=>a.orderNo-b.orderNo).map(o=>[o,DB.rows.Payments.filter(p=>p.fk_OrderorderNo===o.orderNo&&p.transaction_status==='Pending').length]).filter(x=>x[1]>0).map(([o,n])=>[o.orderNo,by('Artworks','no',o.fk_Artworkno).title,n])})}
+];
+function buildLab(){
+  const root=$('#p-lab');
+  root.append(h('h2',{},'Query lab'),
+    h('p',{class:'lead'},'The READ, JOIN and GROUP BY queries from the report, plus four more that use the junction tables. Each runs against the current state of the data, so results change after you sell, insert or delete.'));
+  const cards=QUERIES.map((qr,i)=>{
+    const res=h('div',{class:'qres'}); let ran=false;
+    const run=()=>{ran=true;const {cols,rows}=qr.run();res.replaceChildren(h('div',{class:'cap'},`${rows.length} row${rows.length===1?'':'s'} returned`),renderTable(cols,rows,{maxH:320}));};
+    onChange(()=>{if(ran)run();});
+    return h('div',{class:'card qcard'},h('h3',{},qr.title,' ',h('span',{class:'tag'+(qr.rep?'':' x')},qr.rep?'FROM THE REPORT':'EXTRA')),h('p',{class:'muted'},qr.desc),sqlBlock(qr.sql),
+      h('div',{style:'margin-top:10px'},h('button',{class:'btn',type:'button',onclick:run},'Run query')),res);
+  });
+  root.append(h('div',{style:'margin-top:18px'},cards));
+}
+
+/* ================= start ================= */
+buildArch(); buildSchema(); resetWizard(); buildSell(); buildCrud(); buildLab();
+onChange(()=>{ if(!W.result&&W.step===0) renderSell(); });
+$('#reset').addEventListener('click',()=>{
+  DB=seed(); resetWizard(); crud.log=[]; crud.touched=null; Object.assign(cf,{city:'Birstonas',street:'Vytauto g.',bn:'10',apt:'1',zip:'59101'});
+  Object.assign(uf,{id:'6',street:'Gedimino g.',bn:'12'}); df.id=''; changed(); renderSell(); renderConsole();
+});
+renderStats();
+(function(){const start=(location.hash||'').slice(1);showTab(TABS.some(t=>t[0]===start)?start:'arch');})();
+})();
+</script>
+</body>
+</html>
